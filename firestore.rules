@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Global Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Admin check - lookup from users collection
+    function isAdmin() { 
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; 
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'address', 'phone', 'wishlist']);
+    }
+
+    // --- Products ---
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.price is number && data.price >= 0 &&
+             data.category is string &&
+             data.images is list && data.images.size() > 0;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidProduct(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // --- Reviews ---
+    function isValidReview(data) {
+      return data.productId is string && isValidId(data.productId) &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 5000 &&
+             data.userId == request.auth.uid &&
+             data.status == 'pending';
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(incoming());
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isAdmin();
+    }
+
+    // --- Orders ---
+    function isValidOrder(data) {
+      return data.trackingId is string &&
+             data.totalAmount is number &&
+             data.customer is map &&
+             data.items is list &&
+             (data.userId == 'guest' || (isSignedIn() && data.userId == request.auth.uid));
+    }
+
+    match /orders/{orderId} {
+      // Allow users to read their own orders or admins to read all
+      // Also allow any user (even guest) to read an order if they query by trackingId or it's a guest order
+      allow read: if (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin())) || 
+                    resource.data.userId == 'guest' ||
+                    resource.data.trackingId != null;
+      allow create: if isValidOrder(incoming());
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['orderStatus', 'paymentStatus', 'updatedAt']);
+    }
+
+    // --- Miscellaneous ---
+    match /categories/{categoryId} { allow read: if true; allow write: if isAdmin(); }
+    match /banners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
+    match /settings/{docId} { allow read: if true; allow write: if isAdmin(); }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Main product entity for women's unstitched clothing.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Product name" },
+        "description": { "type": "string", "description": "Detailed description" },
+        "price": { "type": "number", "description": "Current selling price" },
+        "originalPrice": { "type": "number", "description": "Retail price before discount" },
+        "images": { "type": "array", "description": "Array of image URLs" },
+        "category": { "type": "string", "description": "Category ID or name" },
+        "stock": { "type": "number", "description": "Available quantity" },
+        "discount": { "type": "number", "description": "Discount percentage" },
+        "isFeatured": { "type": "boolean", "description": "Show on homepage" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "category", "images"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order details.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "customer": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "phone": { "type": "string" },
+            "address": { "type": "string" },
+            "city": { "type": "string" }
+          }
+        },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "shippingFee": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["COD", "Easypaisa", "JazzCash"] },
+        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid", "Failed"] },
+        "orderStatus": { "type": "string", "enum": ["Order Received", "Confirmed", "Processing", "Shipped", "Out for Delivery", "Delivered", "Cancelled"] },
+        "trackingId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and role management.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "customer"] },
+        "wishlist": { "type": "array" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" }
+      }
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product ratings and comments.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "rating": { "type": "number", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string" },
+        "status": { "type": "string", "enum": ["approved", "pending", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "rating", "comment", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Store all fashion products."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Store customer orders."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Store user profiles."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Store all product reviews."
+    },
+    "/categories/{categoryId}": {
+      "schema": "object",
+      "description": "Product categories."
+    },
+    "/banners/{bannerId}": {
+      "schema": "object",
+      "description": "Homepage banners and sliders."
+    },
+    "/settings/main": {
+      "schema": "object",
+      "description": "Global website settings like delivery charges."
+    }
+  }
+}
